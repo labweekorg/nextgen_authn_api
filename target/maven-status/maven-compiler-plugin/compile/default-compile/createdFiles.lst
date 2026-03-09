@@ -1,0 +1,17 @@
+com/fido/authentication/AuthenticationApplication.class
+com/fido/entity/Credential.class
+com/fido/dto/RegistrationVerifyRequest.class
+com/fido/dto/LoginOptionsRequest.class
+com/fido/repository/CredentialRepository.class
+com/fido/config/CorsConfig.class
+com/fido/entity/User$UserBuilder.class
+com/fido/config/WebAuthnConfig.class
+com/fido/util/ChallengeStore.class
+com/fido/repository/UserRepository.class
+com/fido/util/ChallengeStore$ChallengeEntry.class
+com/fido/dto/RegistrationOptionsRequest.class
+com/fido/dto/LoginVerifyRequest.class
+com/fido/controller/WebAuthnController.class
+com/fido/entity/Credential$CredentialBuilder.class
+com/fido/service/WebAuthnService.class
+com/fido/entity/User.class
