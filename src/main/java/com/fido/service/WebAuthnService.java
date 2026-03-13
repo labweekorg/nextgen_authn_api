@@ -237,11 +237,14 @@ public class WebAuthnService {
 
 			// ── webauthn4j verification ──
 			// Decode the Base64URL-encoded data from the browser
-			byte[] clientDataJSONBytes = Base64.getUrlDecoder().decode(clientDataJSON);
-			byte[] attestationObjectBytes = Base64.getUrlDecoder().decode(attestationObject);
+			log.info("Decoding clientDataJSON: {}", clientDataJSON.length() > 20 ? clientDataJSON.substring(0, 10) + "..." + clientDataJSON.substring(clientDataJSON.length() - 10) : clientDataJSON);
+			log.info("Decoding attestationObject: {}", attestationObject.length() > 20 ? attestationObject.substring(0, 10) + "..." + attestationObject.substring(attestationObject.length() - 10) : attestationObject);
+			log.info("Decoding storedChallenge: {}", storedChallenge.length() > 20 ? storedChallenge.substring(0, 10) + "..." + storedChallenge.substring(storedChallenge.length() - 10) : storedChallenge);
+			byte[] clientDataJSONBytes = decodeBase64UrlSafe(clientDataJSON);
+			byte[] attestationObjectBytes = decodeBase64UrlSafe(attestationObject);
+			byte[] challengeBytes = decodeBase64UrlSafe(storedChallenge);
 
 			// Build ServerProperty with the stored challenge
-			byte[] challengeBytes = Base64.getUrlDecoder().decode(storedChallenge);
 			ServerProperty serverProperty = new ServerProperty(
 					new Origin(webAuthnConfig.getOrigin()),
 					webAuthnConfig.getRpId(),
@@ -457,16 +460,16 @@ public class WebAuthnService {
 			}
 
 			// ── webauthn4j assertion verification ──
-			byte[] credentialIdBytes = Base64.getUrlDecoder().decode(credentialId);
-			byte[] clientDataJSONBytes = Base64.getUrlDecoder().decode(clientDataJSON);
-			byte[] authenticatorDataBytes = Base64.getUrlDecoder().decode(authenticatorData);
-			byte[] signatureBytes = Base64.getUrlDecoder().decode(signature);
+			// Use credentialId as a string (not decoded)
+			byte[] clientDataJSONBytes = decodeBase64UrlSafe(clientDataJSON);
+			byte[] authenticatorDataBytes = decodeBase64UrlSafe(authenticatorData);
+			byte[] signatureBytes = decodeBase64UrlSafe(signature);
 			byte[] userHandleBytes = (userHandleStr != null && !userHandleStr.isBlank())
-					? Base64.getUrlDecoder().decode(userHandleStr)
+					? decodeBase64UrlSafe(userHandleStr)
 					: null;
 
 			// Build ServerProperty with the stored challenge
-			byte[] challengeBytes = Base64.getUrlDecoder().decode(storedChallenge);
+			byte[] challengeBytes = decodeBase64UrlSafe(storedChallenge);
 			ServerProperty serverProperty = new ServerProperty(
 					new Origin(webAuthnConfig.getOrigin()),
 					webAuthnConfig.getRpId(),
@@ -487,7 +490,7 @@ public class WebAuthnService {
 			// webauthn4j AuthenticationRequest constructor:
 			// (credentialId, userHandle, authenticatorData, clientDataJSON, signature)
 			AuthenticationRequest authenticationRequest = new AuthenticationRequest(
-					credentialIdBytes,
+					credential.getCredentialId().getBytes(), // Use credentialId as string bytes
 					userHandleBytes,        // userHandle (from device for discoverable flow)
 					authenticatorDataBytes,
 					clientDataJSONBytes,
@@ -523,6 +526,7 @@ public class WebAuthnService {
 			result.put("displayName", user.getDisplayName());
 			result.put("credentialId", credentialId);
 			result.put("authenticatorType", credential.getAuthenticatorType());
+			result.put("verified", true);
 
 			log.info("FIDO2 login successful for user: {}, type: {}",
 					user.getUsername(), credential.getAuthenticatorType());
@@ -535,4 +539,31 @@ public class WebAuthnService {
 
 		return result;
 	}
+
+	/**
+	 * Decodes a Base64url string, adding padding if necessary.
+	 * This prevents IllegalArgumentException: Last unit does not have enough valid bits.
+	 */
+	private byte[] decodeBase64UrlSafe(String base64url) {
+		if (base64url == null) {
+			log.error("decodeBase64UrlSafe: input is null");
+			return null;
+		}
+		int padding = (4 - (base64url.length() % 4)) % 4;
+		StringBuilder sb = new StringBuilder(base64url);
+		for (int i = 0; i < padding; i++) sb.append('=');
+		String padded = sb.toString();
+		String preview = base64url.length() > 20 ? base64url.substring(0, 10) + "..." + base64url.substring(base64url.length() - 10) : base64url;
+		log.info("Decoding Base64URL: length={}, preview={}", base64url.length(), preview);
+		if (base64url.length() < 10) {
+			log.warn("Base64URL input is very short: {}", base64url);
+		}
+		try {
+			return Base64.getUrlDecoder().decode(padded);
+		} catch (IllegalArgumentException e) {
+			log.error("Base64 decode failed for input (length {}): {}", base64url.length(), preview);
+			throw new IllegalArgumentException("Base64 decode failed for input (preview): " + preview, e);
+		}
+	}
 }
+
