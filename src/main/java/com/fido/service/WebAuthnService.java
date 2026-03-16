@@ -324,6 +324,7 @@ public class WebAuthnService {
 			result.put("username", username);
 			result.put("authenticatorType", authenticatorType);
 			result.put("aaguid", aaguid);
+			result.put("verified", true);
 
 			log.info("FIDO2 registration successful for user: {}, type: {}, aaguid: {}",
 					username, authenticatorType, aaguid);
@@ -331,6 +332,7 @@ public class WebAuthnService {
 		} catch (Exception e) {
 			log.error("Registration verification failed", e);
 			result.put("status", "error");
+			result.put("verified", false);
 			result.put("message", "Registration verification failed: " + e.getMessage());
 		}
 
